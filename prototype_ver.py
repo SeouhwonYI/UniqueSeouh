@@ -45,7 +45,7 @@ pwd_param = "1q2w3e4r"                  # 본인이 설정한 비밀번호
 
 st.set_page_config(page_icon="🧊", layout="wide", menu_items={'About': "# 우리조 화이팅!\nThis is an *extremely* poor prototype T.T"})
 def init_connection():
-    return psycopg2.connect(**st.secrets["postgres"])
+    return psycopg2.connect(**st.secrets)
 
 def run_query(query):
     try:
