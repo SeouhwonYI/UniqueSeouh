@@ -1,4 +1,4 @@
-pip install psycopg2
+!pip install psycopg2
 import streamlit as st
 import pandas as pd
 import numpy as np
