@@ -36,16 +36,9 @@ class Neo4jConnection:
                 session.close()
         return response
 
-################################################################################################
-dbname = ""                             # 왠지는 모르겠으나 local에서는 빈 문자열로 해야 함.
-uri_param = "bolt://localhost:7687"     # local - default
-user_param = "neo4j"                    # local - default
-pwd_param = "1q2w3e4r"                  # 본인이 설정한 비밀번호
-################################################################################################
-
 st.set_page_config(page_icon="🧊", layout="wide", menu_items={'About': "# 우리조 화이팅!\nThis is an *extremely* poor prototype T.T"})
 def init_connection():
-    return psycopg2.connect(**st.secrets)
+    return psycopg2.connect(**st.secrets['postgres'])
 
 def run_query(query):
     try:
