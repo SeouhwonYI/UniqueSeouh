@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import requests
 import streamlit.components.v1 as components
-import psycopg2
+import psycopg2-binary
 import pydeck as pdk
 from neo4j import GraphDatabase
 
