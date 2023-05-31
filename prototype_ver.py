@@ -38,7 +38,7 @@ class Neo4jConnection:
 
 st.set_page_config(page_icon="🧊", layout="wide", menu_items={'About': "# 우리조 화이팅!\nThis is an *extremely* poor prototype T.T"})
 def init_connection():
-    return psycopg2.connect(**st.secrets['postgres'])
+    return psycopg2.connect(**st.secrets["postgres"])
 
 def run_query(query):
     try:
