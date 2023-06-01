@@ -7,6 +7,12 @@ import psycopg2
 import pydeck as pdk
 from neo4j import GraphDatabase
 
+
+dbname = st.secrets["neo4j"]['dbname']
+uri_param = st.secrets["neo4j"]['uri_param']
+user_param = st.secrets["neo4j"]['user_param']
+pwd_param = st.secrets["neo4j"]['pwd_param']
+
 class Neo4jConnection:
     def __init__(self, uri, user, pwd):
         self.__uri = uri
@@ -78,42 +84,46 @@ def load_data(filename):
 
 def get_shortest_path(nid1, nid2, road):
     '''
-    nid1: 출발 node id int
-    nid2: 도착 node id int
+    nid1: 출발 node id int, nid2: 도착 node id int
     filter: ['Edge', 'gentleEdge', 'noUphillEdge'] string
-    Edge: 모든 길
-    gentleEdge: |slope| <= 0.5 인 길
-    noUphillEdge: slope <= 0.5 인 길
+    Edge: 모든 길 / gentleEdge: |slope| <= 0.5 인 길 / noUphillEdge: slope <= 0.5 인 길
     '''
-    cypher = "MATCH (n1: Road {Node: " +str(nid1)+ "}), (n2: Road {Node: " + str(nid2) + "})\n"\
-            + "CALL apoc.algo.dijkstra(n1, n2, '" + road + ">', 'dist') YIELD path, weight\n"\
+    cypher = "MATCH (n1: Node {nid: " +str(nid1)+ "}), (n2: Node {nid: " + str(nid2) + "})\n"\
+            + "CALL apoc.algo.aStar(n1, n2, '" + road + ">', 'distance', 'lat', 'long') YIELD path, weight\n"\
             + "RETURN path, weight"
-    
+
     conn = Neo4jConnection(uri=uri_param, user=user_param, pwd=pwd_param)
-    response = conn.query(cypher, db=dbname)
-    conn.close()
+    try:
+        response = conn.query(cypher, db=dbname)
+        conn.close()
 
-    path = response[0]["path"]
-    weight = response[0]["weight"]
+        path = response[0]["path"]
+        weight = response[0]["weight"]
 
-    p_node = []
-    p_coord = []
-    d_edge = []
 
-    p_node.append(path.start_node.get("Node"))
-    p_coord.append((path.start_node.get("lat"), path.start_node.get("long")))
-    for node in path:
-        # node: 경로 상의 node
-        # print(node.start_node.get("nid"))
-        p_node.append(node.end_node.get("Node"))
-        p_coord.append((node.end_node.get("lat"), node.end_node.get("long")))
-        d_edge.append(node['dist'])
+        p_node = []
+        p_coord = []
+        e_distances = []
+        e_slopes = []
 
-    return p_node, p_coord, d_edge
+
+        p_node.append(path.start_node.get("nid"))
+        p_coord.append((path.start_node.get("long"), path.start_node.get("lat")))
+
+        for node in path:
+            # node: 경로 상의 node
+            p_node.append(node.end_node.get("nid"))
+            p_coord.append((node.end_node.get("long"), node.end_node.get("lat")))
+            e_distances.append(node['distance'])
+            e_slopes.append(node['slope'])
+
+        return p_node, p_coord, e_distances, e_slopes
+    except IndexError:
+        return None, None, None, None
 
 
 st.title("PathFinder+ 🧑‍🦽👩‍🦼 👨‍🦯 🚶‍♀️")
-
+st.session_state['uid'] = None
 with st.sidebar:
     st.sidebar.title('✅ Sign In / Sign Up')
     tab1, tab2= st.tabs(['로그인' , '회원가입'])
@@ -228,7 +238,7 @@ with col1 :
                     df = pd.DataFrame({'nodeid': name, 'Latitude': latitude, 'Longitude': longitude}, index=[0])
                     st.write("장소명 :", name, "  \n위도 :", latitude, "  \n경도 :", longitude)
 
-                    filtered_data = roaddata[(abs(roaddata['longitude']-longitude) <= 0.0005) & (abs(roaddata['latitude']-latitude) <= 0.0005)]
+                    filtered_data = roaddata[(abs(roaddata['long'].astype(float)-longitude) <= 0.0005) & (abs(roaddata['lat'].astype(float)-latitude) <= 0.0005)][['nodeid','long','lat']].astype(float)
 
                         # Create a pydeck map using the KAKAOMAP API
                     view_state = pdk.ViewState(latitude=df['Latitude'].mean(),
@@ -240,17 +250,17 @@ with col1 :
                                         data=df,
                                         get_position='[Longitude, Latitude]',
                                         get_radius=5,
-                                        get_fill_color=[0, 255, 0],
+                                        get_fill_color=[230, 91, 76],
                                         pickable=True)
                     layer2 = pdk.Layer('ScatterplotLayer',
                                         data=filtered_data,
-                                        get_position='[longitude, latitude]',
+                                        get_position='[long, lat]',
                                         get_radius=5,
-                                        get_fill_color=[255, 0, 0],
+                                        get_fill_color=[16, 155, 194],
                                         pickable=True)
 
                     tool_tip = {'html': '{nodeid}',
-                                    'style': {'backgroundColor': 'steelblue', 'color': 'white', 'zIndex': 10}}
+                                    'style': {'backgroundColor': 'green', 'color': 'white', 'zIndex': 10}}
 
                     map_config = pdk.Deck(layers=[layer1, layer2], initial_view_state=view_state, tooltip=tool_tip,
                                             map_style='road', height=210)
@@ -270,8 +280,7 @@ with col1 :
                     df = pd.DataFrame({'nodeid': name, 'Latitude': latitude, 'Longitude': longitude}, index=[0])
                     st.write("장소명 :", name, "  \n위도 :", latitude, "  \n경도 :", longitude)
 
-                    filtered_data = roaddata[(abs(roaddata['longitude']-longitude) <= 0.0005) & (abs(roaddata['latitude']-latitude) <= 0.0005)]
-
+                    filtered_data = roaddata[(abs(roaddata['long'].astype(float)-longitude) <= 0.0005) & (abs(roaddata['lat'].astype(float)-latitude) <= 0.0005)][['nodeid','long','lat']].astype(float)
                         # Create a pydeck map using the KAKAOMAP API
                     view_state = pdk.ViewState(latitude=df['Latitude'].mean(),
                                                 longitude=df['Longitude'].mean(),
@@ -282,17 +291,17 @@ with col1 :
                                         data=df,
                                         get_position='[Longitude, Latitude]',
                                         get_radius=5,
-                                        get_fill_color=[0, 255, 0],
+                                        get_fill_color=[230, 91, 76],
                                         pickable=True)
                     layer2 = pdk.Layer('ScatterplotLayer',
                                         data=filtered_data,
-                                        get_position='[longitude, latitude]',
+                                        get_position='[long, lat]',
                                         get_radius=5,
-                                        get_fill_color=[255, 0, 0],
+                                        get_fill_color=[16, 155, 194],
                                         pickable=True)
 
                     tool_tip = {'html': '{nodeid}',
-                                    'style': {'backgroundColor': 'steelblue', 'color': 'white', 'zIndex': 10}}
+                                    'style': {'backgroundColor': 'green', 'color': 'white', 'zIndex': 10}}
 
                     map_config = pdk.Deck(layers=[layer1, layer2], initial_view_state=view_state, tooltip=tool_tip,
                                             map_style='road', height=210)
@@ -301,7 +310,7 @@ with col1 :
                 else:
                     st.write('No results found.')
         st.info("👋 지역명을 검색한 후 현위치, 도착지와 가장 가까운 점의 노드 ID를 오른쪽에 입력하세요!")
-a = 0
+pathdata = None
 row = run_query(f"SELECT count(*) FROM users_search").iloc[0,0]
 with col2:
     with st.form("경로추천"):
@@ -310,52 +319,74 @@ with col2:
         endid = st.text_input('도착지의 NodeID를 입력해주세요.')
         
         if st.form_submit_button('검색'):
-            if st.session_state['uid'] and start and end and startid and endid:
+            ### 이 부분(id 인식 x) 왜인지 오류가 난다.... 사실 검색기록도 계속 띄워놓고 싶다... 글로벌 변수 issue 왜 구글링을 못하겠지
+            # st.write(st.session_state['uid'])
+            if st.session_state['uid'] != None and start and end and startid and endid:
                 row += 1
                 apply_sql = f"INSERT INTO users_search (uid, times, dep, arr, startid, endid, id) VALUES ('{st.session_state['uid']}', CURRENT_TIMESTAMP,'{start}','{end}','{startid}','{endid}','{row}')"
                 run_tx(apply_sql)
-            # p_nodes, p_coord, d_edge = get_shortest_path(startid, endid, 'Info')
-            # print(p_nodes)
-            # print(p_coord)
-            # print(d_edge)
-            st.write("변경된 지도 생성")
-            a = '변경된 지도'
+            p_node, p_coord, e_distances, e_slopes = get_shortest_path(startid, endid, 'Edge')
+            p_node_g, p_coord_g, e_distnaces_g, e_slopes_g = get_shortest_path(startid, endid, 'gentleEdge')
+            p_node_d, p_coord_d, e_distnaces_d, e_slopes_d = get_shortest_path(startid, endid, 'noUphillEdge')
+            if p_node != None:
+                pathdata = pd.DataFrame({'color' : ['#0000FF'], 'path' : [p_coord], 'tag' : '최단경로'}, index = ['Edge'])
+            else:
+                st.error("죄송합니다. 원하시는 결과를 찾을 수 없습니다.")
+            if p_node_g != None:
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#000000'], 'path': [p_coord_g], 'tag' : '완만한 경사로'}, index = ['gentleEdge'])])
+            if p_node_d != None:
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#FF0000'], 'path': [p_coord_d], 'tag' : '오르막 없음'}, index = ['noUphillEdge'])])
         st.info("👋 1️⃣의 결과 또는 검색기록을 활용하여 NodeID를 입력하세요!")
-if a != 0:
-    st.write(a)
 
+if pathdata is not None:
+    # st.write('<color:Blue'최단경로'; color:Blue)
+    # if pathdata['']
+    # st.write(pathdata)
+    view_state = pdk.ViewState(
+    latitude=pathdata['path'][0][0][1],
+    longitude=pathdata['path'][0][0][0],
+    zoom=14)
 
+    def hex_to_rgb(h):
+        h = h.lstrip('#')
+        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
+    pathdata['color'] = pathdata['color'].apply(hex_to_rgb)
 
-# df = pd.DataFrame({'color':['#FF0000', '#00FF00'], 'path':[[[126.9484033871627,37.466352968363864],[126.941686527151,37.4824725161034],[126.963523905001,37.4770932409965],[126.952713197762,37.4812845080678]],
-#                                                            [[126.963523905001,37.4770932409965],[126.960884263255,37.4658730147545]]]})
+    layer = pdk.Layer(
+        type='PathLayer',
+        data=pathdata,
+        pickable=True,
+        get_color = 'color',
+        width_scale=1,
+        width_min_pixels=2,
+        get_path='path',
+        get_width=5
+    )
+    subway = load_data('station')
+    for station in subway['nodeid']:
+        station_info = run_query(query = f"select e.지하철역명 as station, e.설치장소 as elevator, null as whellchair from elevator e \
+        where e.지하철역명 ='{station}' union select w.역명 as station, null, w.설치장소 as wheelchair_ from wheel w where w.역명 ='{station}' order by station, elevator;")
+        ele = station_info.iloc[:,1].str.cat(sep='<br>')
+        whl = station_info.iloc[:,2].str.cat(sep='<br>')
 
-# view_state = pdk.ViewState(
-#     latitude=37.4770932409965,
-#     longitude=126.963523905001,
-#     zoom=14
-# )
-# def hex_to_rgb(h):
-#     h = h.lstrip('#')
-#     return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+        info=''
+        if ele!='':
+            info+='<br><br> <엘리베이터 위치정보><br>'+ele+'<br>'
+        if whl!='':
+            info+='<br><휠체어 경사로 위치정보><br>'+whl
+        subway['tag'] = '['+subway['nodeid'] + '역]' + info
+        
+    layer1 = pdk.Layer('ScatterplotLayer',
+        data=subway,
+        get_position='[longitude, latitude]',
+        get_radius=15,
+        get_fill_color=[256, 256, 256],
+        pickable=True)
 
-# df['color'] = df['color'].apply(hex_to_rgb)
+    r = pdk.Deck(layers=[layer, layer1], initial_view_state=view_state, tooltip={'html': '{tag}'}, map_style='road')
 
-# layer = pdk.Layer(
-#     type='PathLayer',
-#     data=df,
-#     pickable=True,
-#     get_color = 'color',
-#     width_scale=2,
-#     width_min_pixels=2,
-#     get_path='path',
-#     get_width=5
-# )
-
-# r = pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip={'html': '냐옹'}, map_style='road')
-
-# st.pydeck_chart(r)
-
+    st.pydeck_chart(r)
 
 
 quit()
