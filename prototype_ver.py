@@ -326,25 +326,37 @@ with col2:
                 apply_sql = f"INSERT INTO users_search (uid, times, dep, arr, startid, endid, id) VALUES ('{st.session_state['uid']}', CURRENT_TIMESTAMP,'{start}','{end}','{startid}','{endid}','{row}')"
                 run_tx(apply_sql)
             p_node, p_coord, e_distances, e_slopes = get_shortest_path(startid, endid, 'Edge')
-            p_node_g, p_coord_g, e_distnaces_g, e_slopes_g = get_shortest_path(startid, endid, 'gentleEdge')
-            p_node_d, p_coord_d, e_distnaces_d, e_slopes_d = get_shortest_path(startid, endid, 'noUphillEdge')
+            # p_node_g, p_coord_g, e_distances_g, e_slopes_g = get_shortest_path(startid, endid, 'gentleEdge')
+            p_node_d, p_coord_d, e_distances_d, e_slopes_d = get_shortest_path(startid, endid, 'noUphillEdge')
+            # st.write(pd.DataFrame(e_slopes)[pd.DataFrame(e_slopes).astype(float) > 0.05])
+
+
+            pathdata = pd.DataFrame()
+            # if p_node_g != None:
+            #     pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#000000'], 'path': [p_coord_g], 'tag' : '완만한 경사로'}, index = ['gentleEdge'])])
+            if p_node_d != None:
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#DAA520'], 'path': [p_coord_d], 'tag' : '오르막 없음<br>'+str(round(sum(e_distances_d),3))+' m'}, index = ['noUphillEdge'])])
             if p_node != None:
-                pathdata = pd.DataFrame({'color' : ['#0000FF'], 'path' : [p_coord], 'tag' : '최단경로'}, index = ['Edge'])
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#0000FF'], 'path' : [p_coord], 'tag' : '최단경로<br>'+str(round(sum(e_distances),3))+' m'}, index = ['Edge'])])
             else:
                 st.error("죄송합니다. 원하시는 결과를 찾을 수 없습니다.")
-            if p_node_g != None:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#000000'], 'path': [p_coord_g], 'tag' : '완만한 경사로'}, index = ['gentleEdge'])])
-            if p_node_d != None:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#FF0000'], 'path': [p_coord_d], 'tag' : '오르막 없음'}, index = ['noUphillEdge'])])
+            slope = pd.DataFrame({'slope' : e_slopes}).astype(float)
+            for i in slope[slope['slope'] > 0.05].index:
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#FF0000'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3))})])
+
         st.info("👋 1️⃣의 결과 또는 검색기록을 활용하여 NodeID를 입력하세요!")
 
 if pathdata is not None:
-    # st.write('<color:Blue'최단경로'; color:Blue)
+    st.markdown("""파란색으로 표현된 경로는 :blue[최단경로] 이며, 거리는 총 :green[""" + str(round(sum(e_distances),3)) + """] m 입니다.""")
+    if 0 in pathdata.index:
+        st.markdown("""빨간색으로 표현된 경로는 :red[경사가 가파른 도로] 입니다.""")
+    if 'noUphillEdge' in pathdata.index:
+        st.markdown("""금색으로 표현된 경로는 <span style='color:gold'>오르막이 없는 경로</span> 이며, 거리는 총 :green[""" + str(round(sum(e_distances_d),3)) + """] m 입니다.""", unsafe_allow_html=True)
     # if pathdata['']
     # st.write(pathdata)
     view_state = pdk.ViewState(
-    latitude=pathdata['path'][0][0][1],
-    longitude=pathdata['path'][0][0][0],
+    latitude=pathdata.loc['Edge']['path'][0][1],
+    longitude=pathdata.loc['Edge']['path'][0][0],
     zoom=14)
 
     def hex_to_rgb(h):
@@ -358,7 +370,7 @@ if pathdata is not None:
         data=pathdata,
         pickable=True,
         get_color = 'color',
-        width_scale=1,
+        width_scale=2,
         width_min_pixels=2,
         get_path='path',
         get_width=5
