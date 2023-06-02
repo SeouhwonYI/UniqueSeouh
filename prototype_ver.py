@@ -6,12 +6,16 @@ import streamlit.components.v1 as components
 import psycopg2
 import pydeck as pdk
 from neo4j import GraphDatabase
+# from ipywidgets import HTML
+from IPython.core.display import display, HTML
 
 
 dbname = st.secrets["neo4j"]['dbname']
 uri_param = st.secrets["neo4j"]['uri_param']
 user_param = st.secrets["neo4j"]['user_param']
 pwd_param = st.secrets["neo4j"]['pwd_param']
+def init_connection():
+    return psycopg2.connect(**st.secrets["postgres"])
 
 class Neo4jConnection:
     def __init__(self, uri, user, pwd):
@@ -43,8 +47,6 @@ class Neo4jConnection:
         return response
 
 st.set_page_config(page_icon="🧊", layout="wide", menu_items={'About': "# 우리조 화이팅!\nThis is an *extremely* poor prototype T.T"})
-def init_connection():
-    return psycopg2.connect(**st.secrets["postgres"])
 
 def run_query(query):
     try:
@@ -81,6 +83,22 @@ def load_data(filename):
     check_sql = f"SELECT * FROM {filename}"
     data = run_query(check_sql)
     return data
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+
+def load_elevator_data(station_name):
+    check_sql = f"SELECT e.\"노드 WKT\", e.\"설치장소\" FROM elevator e WHERE e.\"지하철역명\" = '{station_name}'"
+    print(check_sql)
+    data = run_query(check_sql)
+    return data
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
 
 def get_shortest_path(nid1, nid2, road):
     '''
@@ -123,19 +141,28 @@ def get_shortest_path(nid1, nid2, road):
 
 
 st.title("PathFinder+ 🧑‍🦽👩‍🦼 👨‍🦯 🚶‍♀️")
-st.session_state['uid'] = None
+########################################################################################################################
+########################################################################################################################
+
+if 'uid' not in st.session_state:
+    st.session_state['uid'] = None
+
+########################################################################################################################
+########################################################################################################################
+
 with st.sidebar:
     st.sidebar.title('✅ Sign In / Sign Up')
     tab1, tab2= st.tabs(['로그인' , '회원가입'])
 
     with tab1:
         # 사이드바에 select box를 활용하여 종을 선택한 다음 그에 해당하는 행만 추출하여 데이터프레임을 만들고자합니다.
-        st.session_state['log_in'] = False
+        if  'log_in' not in st.session_state:
+            st.session_state['log_in'] = False
         with st.form("my_form1"):
             uid = st.text_input('ID:', autocomplete="id")
             pwd = st.text_input('Password:', type='password', max_chars=12)
             c1, c2 = st.columns(2)
-                
+
             with c1:
                 apply_button = st.form_submit_button("로그인")
             with c2:
@@ -157,7 +184,7 @@ with st.sidebar:
                             st.session_state['uid'] = uid
                 else:
                     st.error("모든 정보를 입력해주세요.")
-            
+
             if apply_button2:
                 if uid and pwd:
                     check_sql = f"SELECT * FROM users WHERE uid = '{uid}'"
@@ -175,6 +202,7 @@ with st.sidebar:
                             st.success("더 좋은 서비스로 찾아뵙겠습니다.")
                 else:
                     st.error("모든 정보를 입력해주세요.")
+
     if st.session_state['log_in'] == True:
         st.subheader('최근 검색 기록')
         st.write(search_data(uid))
@@ -213,6 +241,17 @@ with st.sidebar:
 col1,col2 = st.columns([3,3])
 roaddata = load_data('nodes')
 
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+stations = ['봉천역', '신림역', '서울대입구역', '낙성대역']
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
 with col1 :
     with st.form("startend"):
         st.markdown('1️⃣ 먼저 가고 싶은 곳의 지명을 입력하세요.')
@@ -225,7 +264,33 @@ with col1 :
             startparams = {'query': start}
             endparams = {'query': end}
             startmap, endmap = st.columns(2)
+
             with startmap:
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+                df_elevator_start = None
+
+                if (start in stations):
+                    station_name = start[:-1]
+                    data = load_elevator_data(station_name)
+                    if len(data) > 0:
+                        loc_elevator = data["설치장소"]
+                        loc_elevator = '  '.join(loc_elevator)
+                        st.markdown("🛗 검색하신 역의 엘리베이터는 아래와 같이 설치되어 있습니다.👇")
+                        st.warning(loc_elevator)
+                        coord_elevator = data["노드 WKT"]
+                        coord_elevator = np.array([list(map(float, i.replace('POINT(', '').replace(')','').split(' '))) for i in coord_elevator])
+                        latitude = coord_elevator[:, 1]
+                        longitude = coord_elevator[:, 0]
+                        df_elevator_start = pd.DataFrame({'nodeid': data["설치장소"].values, 'Latitude': latitude, 'Longitude': longitude})
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+
                 response = requests.get(url, headers=headers, params=startparams)
                 data = response.json()
                 if 'documents' in data:
@@ -259,16 +324,58 @@ with col1 :
                                         get_fill_color=[16, 155, 194],
                                         pickable=True)
 
+########################################################################################################################
+########################################################################################################################
+                    layers=[layer1, layer2]
+
+                    if(df_elevator_start is not None):
+                        layer3 = pdk.Layer('ScatterplotLayer',
+                                           data=df_elevator_start,
+                                           get_position='[Longitude, Latitude]',
+                                           get_radius=5,
+                                           get_fill_color=[97, 189, 92],
+                                           pickable=True)
+                        layers.append(layer3)
+########################################################################################################################
+########################################################################################################################
+
                     tool_tip = {'html': '{nodeid}',
                                     'style': {'backgroundColor': 'green', 'color': 'white', 'zIndex': 10}}
 
-                    map_config = pdk.Deck(layers=[layer1, layer2], initial_view_state=view_state, tooltip=tool_tip,
+                    map_config = pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tool_tip,
                                             map_style='road', height=210)
+
 
                     st.components.v1.html(map_config.to_html(as_string=True), height=210)
                 else:
                     st.write('No results found.')
             with endmap:
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+                df_elevator_end = None
+
+                if (end in stations):
+                    station_name = end[:-1]
+                    data = load_elevator_data(station_name)
+                    if len(data) > 0:
+                        loc_elevator = data["설치장소"]
+                        loc_elevator = '  '.join(loc_elevator)
+                        st.markdown("🛗 검색하신 역의 엘리베이터는 아래와 같이 설치되어 있습니다.👇")
+                        st.warning(loc_elevator)
+                        coord_elevator = data["노드 WKT"]
+                        coord_elevator = np.array([list(map(float, i.replace('POINT(', '').replace(')','').split(' '))) for i in coord_elevator])
+                        latitude = coord_elevator[:, 1]
+                        longitude = coord_elevator[:, 0]
+                        df_elevator_end = pd.DataFrame({'nodeid': data["설치장소"].values, 'Latitude': latitude, 'Longitude': longitude})
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+
                 response = requests.get(url, headers=headers, params=endparams)
                 data = response.json()
                 if 'documents' in data:
@@ -300,13 +407,28 @@ with col1 :
                                         get_fill_color=[16, 155, 194],
                                         pickable=True)
 
+########################################################################################################################
+########################################################################################################################
+                    layers = [layer1, layer2]
+                    if(df_elevator_end is not None):
+                        layer3 = pdk.Layer('ScatterplotLayer',
+                                           data=df_elevator_end,
+                                           get_position='[Longitude, Latitude]',
+                                           get_radius=5,
+                                           get_fill_color=[97, 189, 92],
+                                           pickable=True)
+                        layers.append(layer3)
+########################################################################################################################
+########################################################################################################################
+
                     tool_tip = {'html': '{nodeid}',
                                     'style': {'backgroundColor': 'green', 'color': 'white', 'zIndex': 10}}
 
-                    map_config = pdk.Deck(layers=[layer1, layer2], initial_view_state=view_state, tooltip=tool_tip,
+                    map_config = pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tool_tip,
                                             map_style='road', height=210)
 
                     st.components.v1.html(map_config.to_html(as_string=True), height=210)
+
                 else:
                     st.write('No results found.')
         st.info("👋 지역명을 검색한 후 현위치, 도착지와 가장 가까운 점의 노드 ID를 오른쪽에 입력하세요!")
@@ -320,7 +442,7 @@ with col2:
         
         if st.form_submit_button('검색'):
             ### 이 부분(id 인식 x) 왜인지 오류가 난다.... 사실 검색기록도 계속 띄워놓고 싶다... 글로벌 변수 issue 왜 구글링을 못하겠지
-            # st.write(st.session_state['uid'])
+            # print(st.session_state['uid'])
             if st.session_state['uid'] != None and start and end and startid and endid:
                 row += 1
                 apply_sql = f"INSERT INTO users_search (uid, times, dep, arr, startid, endid, id) VALUES ('{st.session_state['uid']}', CURRENT_TIMESTAMP,'{start}','{end}','{startid}','{endid}','{row}')"
@@ -342,12 +464,13 @@ with col2:
                 st.error("죄송합니다. 원하시는 결과를 찾을 수 없습니다.")
             slope = pd.DataFrame({'slope' : e_slopes}).astype(float)
             for i in slope[(slope['slope'] > 0.05) & (slope['slope'] <0.15)].index:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#D7DF01'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3))})])
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#D7DF01'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3)) + '<br>구간 길이 : ' + str(round(e_distances[i],3)) + 'm'})])
             for i in slope[slope['slope'] >= 0.15].index:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#FF0000'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3))})])
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#FF0000'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3)) + '<br>구간 길이 : ' + str(round(e_distances[i],3)) + 'm'})])
 
         st.info("👋 1️⃣의 결과 또는 검색기록을 활용하여 NodeID를 입력하세요!")
-speed = 67
+
+speed = 50
 def time(dist):
     time = dist / speed
     hour = int(time // 60)
@@ -357,8 +480,8 @@ def time(dist):
     return str(min)+'분'
 if pathdata is not None:
     st.markdown("""초록색으로 표현된 경로는 :green[최단경로] 이며, 거리는 총 :green[""" + str(round(sum(e_distances),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances))+"""] 입니다.""")
-    if 0 in pathdata.index:
-        st.markdown("""빨간색으로 표현된 경로는 :red[경사가 가파른 도로] 입니다.""")
+    if not pathdata[(pathdata['color']=='#FF0000')|(pathdata['color']=='#D7DF01')].empty:
+        st.markdown("""노란색으로 표현된 경로는 <span style='color:yellow'>경사가 약간 있는 도로</span> 이며, 빨간색으로 표현된 경로는 :red[경사가 가파른 도로] 입니다.""", unsafe_allow_html=True)
     if 'noUphillEdge' in pathdata.index:
         st.markdown("""파란색으로 표현된 경로는 <span style='color:blue'>오르막이 없는 우회로</span> 이며, 거리는 총 :green[""" + str(round(sum(e_distances_d),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances_d))+"""] 입니다.""", unsafe_allow_html=True)
     # if pathdata['']
