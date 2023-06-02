@@ -71,7 +71,7 @@ def quit():
     return
 
 def search_data(uid):
-    check_sql = f"SELECT dep, arr, startid, endid FROM users_search WHERE uid = '{uid}' ORDER BY id DESC limit 3"
+    check_sql = f"SELECT dep, arr, startid, endid FROM users_search WHERE uid = '{uid}' ORDER BY id DESC limit 5"
     data = run_query(check_sql)
     return data
 
