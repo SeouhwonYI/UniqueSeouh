@@ -335,23 +335,32 @@ with col2:
             # if p_node_g != None:
             #     pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#000000'], 'path': [p_coord_g], 'tag' : '완만한 경사로'}, index = ['gentleEdge'])])
             if p_node_d != None:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#DAA520'], 'path': [p_coord_d], 'tag' : '오르막 없음<br>'+str(round(sum(e_distances_d),3))+' m'}, index = ['noUphillEdge'])])
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#6666DD'], 'path': [p_coord_d], 'tag' : '오르막 없음<br>'+str(round(sum(e_distances_d),3))+' m'}, index = ['noUphillEdge'])])
             if p_node != None:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#0000FF'], 'path' : [p_coord], 'tag' : '최단경로<br>'+str(round(sum(e_distances),3))+' m'}, index = ['Edge'])])
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#04B404'], 'path' : [p_coord], 'tag' : '최단경로<br>'+str(round(sum(e_distances),3))+' m'}, index = ['Edge'])])
             else:
                 st.error("죄송합니다. 원하시는 결과를 찾을 수 없습니다.")
             slope = pd.DataFrame({'slope' : e_slopes}).astype(float)
-            for i in slope[slope['slope'] > 0.05].index:
+            for i in slope[(slope['slope'] > 0.05) & (slope['slope'] <0.15)].index:
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#D7DF01'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3))})])
+            for i in slope[slope['slope'] >= 0.15].index:
                 pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#FF0000'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3))})])
 
         st.info("👋 1️⃣의 결과 또는 검색기록을 활용하여 NodeID를 입력하세요!")
-
+speed = 67
+def time(dist):
+    time = dist / speed
+    hour = int(time // 60)
+    min = int(time % 60)
+    if hour != 0 :
+        return str(hour)+'시간 '+str(min)+'분'
+    return str(min)+'분'
 if pathdata is not None:
-    st.markdown("""파란색으로 표현된 경로는 :blue[최단경로] 이며, 거리는 총 :green[""" + str(round(sum(e_distances),3)) + """] m 입니다.""")
+    st.markdown("""초록색으로 표현된 경로는 :green[최단경로] 이며, 거리는 총 :green[""" + str(round(sum(e_distances),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances))+"""] 입니다.""")
     if 0 in pathdata.index:
         st.markdown("""빨간색으로 표현된 경로는 :red[경사가 가파른 도로] 입니다.""")
     if 'noUphillEdge' in pathdata.index:
-        st.markdown("""금색으로 표현된 경로는 <span style='color:gold'>오르막이 없는 경로</span> 이며, 거리는 총 :green[""" + str(round(sum(e_distances_d),3)) + """] m 입니다.""", unsafe_allow_html=True)
+        st.markdown("""파란색으로 표현된 경로는 <span style='color:blue'>오르막이 없는 우회로</span> 이며, 거리는 총 :green[""" + str(round(sum(e_distances_d),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances_d))+"""] 입니다.""", unsafe_allow_html=True)
     # if pathdata['']
     # st.write(pathdata)
     view_state = pdk.ViewState(
