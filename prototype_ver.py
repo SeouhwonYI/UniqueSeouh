@@ -6,9 +6,6 @@ import streamlit.components.v1 as components
 import psycopg2
 import pydeck as pdk
 from neo4j import GraphDatabase
-# from ipywidgets import HTML
-from IPython.core.display import display, HTML
-
 
 dbname = st.secrets["neo4j"]['dbname']
 uri_param = st.secrets["neo4j"]['uri_param']
