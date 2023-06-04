@@ -420,6 +420,8 @@ with col2:
         st.info("👋 1️⃣의 결과 또는 검색기록을 활용하여 Node ID를 입력하세요!")
         startid = st.text_input('출발지의 Node ID를 입력해주세요.')
         endid = st.text_input('도착지의 Node ID를 입력해주세요.')
+
+        speed = st.slider('걸음걸이 속도를 정해주세요. (단위 : m/min)', 35, 170, 50,help='조깅 속도 : 135 m/min\n\n성인평균 걸음걸이 속도 : 75 m/min\n\n고연령자 평균 걸음걸이 속도 : 65 m/min')
         
         if st.form_submit_button('검색'):
             if st.session_state['uid'] != None and start and end and startid and endid:
@@ -445,9 +447,8 @@ with col2:
 
         
 
-speed = 50
 def time(dist):
-    time = dist / speed
+    time = dist / speed + dist / 150  # 거리/속도 + 150m당 휴식 1분
     hour = int(time // 60)
     min = int(time % 60)
     if hour != 0 :
