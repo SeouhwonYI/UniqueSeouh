@@ -434,7 +434,7 @@ with col1 :
 
                 else:
                     st.write('No results found.')
-        st.info("👋 지역명을 검색한 후 현위치, 도착지와 가장 가까운 점의 노드 ID를 오른쪽에 입력하세요!")
+        st.info("👋 출발지와 도착지를 검색한 후 원하시는 점의 Node ID를 2️⃣에 입력하세요!")
 pathdata = None
 row = run_query(f"SELECT count(*) FROM users_search").iloc[0,0]
 with col2:
@@ -471,7 +471,7 @@ with col2:
             for i in slope[slope['slope'] >= 0.15].index:
                 pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#FF0000'], 'path' : [[p_coord[i], p_coord[i+1]]], 'tag' : '경사도 : ' + str(round(e_slopes[i],3)) + '<br>구간 길이 : ' + str(round(e_distances[i],3)) + 'm'})])
 
-        st.info("👋 1️⃣의 결과 또는 검색기록을 활용하여 NodeID를 입력하세요!")
+        st.info("👋 1️⃣의 결과 또는 검색기록을 활용하여 Node ID를 입력하세요!")
 
 speed = 50
 def time(dist):
