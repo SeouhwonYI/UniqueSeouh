@@ -428,15 +428,15 @@ with col2:
                 row += 1
                 apply_sql = f"INSERT INTO users_search (uid, times, dep, arr, startid, endid, id) VALUES ('{st.session_state['uid']}', CURRENT_TIMESTAMP,'{start}','{end}','{startid}','{endid}','{row}')"
                 run_tx(apply_sql)
-            p_node, p_coord, e_distances, e_slopes = get_shortest_path(startid, endid, 'Edge')
-            p_node_d, p_coord_d, e_distances_d, e_slopes_d = get_shortest_path(startid, endid, 'noUphillEdge')
+            p_node, p_coord, e_distances, e_slopes = get_shortest_path(startid, endid, 'newEdge')
+            p_node_d, p_coord_d, e_distances_d, e_slopes_d = get_shortest_path(startid, endid, 'newNoUphillEdge')
 
 
             pathdata = pd.DataFrame()
             if p_node_d != None:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#6666DD'], 'path': [p_coord_d], 'tag' : '오르막 없음<br>'+str(round(sum(e_distances_d),3))+' m'}, index = ['noUphillEdge'])])
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#6666DD'], 'path': [p_coord_d], 'tag' : '오르막 없음<br>'+str(round(sum(e_distances_d),3))+' m'}, index = ['newNoUphillEdge'])])
             if p_node != None:
-                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#04B404'], 'path' : [p_coord], 'tag' : '최단경로<br>'+str(round(sum(e_distances),3))+' m'}, index = ['Edge'])])
+                pathdata = pd.concat([pathdata,pd.DataFrame({'color' : ['#04B404'], 'path' : [p_coord], 'tag' : '최단경로<br>'+str(round(sum(e_distances),3))+' m'}, index = ['newEdge'])])
             else:
                 st.error("죄송합니다. 원하시는 결과를 찾을 수 없습니다.")
             slope = pd.DataFrame({'slope' : e_slopes}).astype(float)
