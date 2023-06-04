@@ -7,6 +7,7 @@ import psycopg2
 import pydeck as pdk
 from neo4j import GraphDatabase
 
+
 dbname = st.secrets["neo4j"]['dbname']
 uri_param = st.secrets["neo4j"]['uri_param']
 user_param = st.secrets["neo4j"]['user_param']
@@ -71,7 +72,7 @@ def quit():
     return
 
 def search_data(uid):
-    check_sql = f"SELECT dep, arr, startid, endid FROM users_search WHERE uid = '{uid}' ORDER BY id DESC limit 5"
+    check_sql = f"SELECT dep, arr, startid, endid FROM users_search WHERE uid = '{uid}' ORDER BY id DESC limit 3"
     data = run_query(check_sql)
     return data
 
@@ -87,8 +88,7 @@ def load_data(filename):
 
 
 def load_elevator_data(station_name):
-    check_sql = f"SELECT e.\"노드 WKT\", e.\"설치장소\" FROM elevator e WHERE e.\"지하철역명\" = '{station_name}'"
-    print(check_sql)
+    check_sql = f"SELECT e.\"노드 WKT\", e.\"설치장소\" FROM elevator e WHERE e.\"지하철역명\" = '{station_name}' order by e.\"설치장소\""
     data = run_query(check_sql)
     return data
 
@@ -273,10 +273,13 @@ with col1 :
                     station_name = start[:-1]
                     data = load_elevator_data(station_name)
                     if len(data) > 0:
-                        loc_elevator = data["설치장소"]
-                        loc_elevator = '  '.join(loc_elevator)
+                        elevatortxt = ''
+                        for i in range(len(data)-1):
+                            loc_elevator = data["설치장소"][i].split(' ')[0][:-1]
+                            elevatortxt += (loc_elevator+', ')
+                        elevatortxt += (data["설치장소"][len(data)-1].split(' ')[0][:-1]+'번 출구')
                         st.markdown("🛗 검색하신 역의 엘리베이터는 아래와 같이 설치되어 있습니다.👇")
-                        st.warning(loc_elevator)
+                        st.warning(elevatortxt)
                         coord_elevator = data["노드 WKT"]
                         coord_elevator = np.array([list(map(float, i.replace('POINT(', '').replace(')','').split(' '))) for i in coord_elevator])
                         latitude = coord_elevator[:, 1]
@@ -340,7 +343,7 @@ with col1 :
                                     'style': {'backgroundColor': 'green', 'color': 'white', 'zIndex': 10}}
 
                     map_config = pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tool_tip,
-                                            map_style='road', height=210)
+                                            map_style='dark', height=210)
 
 
                     st.components.v1.html(map_config.to_html(as_string=True), height=210)
@@ -358,10 +361,13 @@ with col1 :
                     station_name = end[:-1]
                     data = load_elevator_data(station_name)
                     if len(data) > 0:
-                        loc_elevator = data["설치장소"]
-                        loc_elevator = '  '.join(loc_elevator)
+                        elevatortxt = ''
+                        for i in range(len(data)-1):
+                            loc_elevator = data["설치장소"][i].split(' ')[0][:-1]
+                            elevatortxt += (loc_elevator+', ')
+                        elevatortxt += (data["설치장소"][len(data)-1].split(' ')[0][:-1]+'번 출구')
                         st.markdown("🛗 검색하신 역의 엘리베이터는 아래와 같이 설치되어 있습니다.👇")
-                        st.warning(loc_elevator)
+                        st.warning(elevatortxt)
                         coord_elevator = data["노드 WKT"]
                         coord_elevator = np.array([list(map(float, i.replace('POINT(', '').replace(')','').split(' '))) for i in coord_elevator])
                         latitude = coord_elevator[:, 1]
@@ -422,7 +428,7 @@ with col1 :
                                     'style': {'backgroundColor': 'green', 'color': 'white', 'zIndex': 10}}
 
                     map_config = pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tool_tip,
-                                            map_style='road', height=210)
+                                            map_style='dark', height=210)
 
                     st.components.v1.html(map_config.to_html(as_string=True), height=210)
 
@@ -484,9 +490,9 @@ if pathdata is not None:
     # if pathdata['']
     # st.write(pathdata)
     view_state = pdk.ViewState(
-    latitude=pathdata.loc['Edge']['path'][0][1],
-    longitude=pathdata.loc['Edge']['path'][0][0],
-    zoom=14)
+    latitude=(pathdata.loc['Edge']['path'][0][1]+pathdata.loc['Edge']['path'][len(pathdata.loc['Edge']['path'])-1][1]) / 2,
+    longitude=(pathdata.loc['Edge']['path'][0][0]+pathdata.loc['Edge']['path'][len(pathdata.loc['Edge']['path'])-1][0]) / 2,
+    zoom=15)
 
     def hex_to_rgb(h):
         h = h.lstrip('#')
