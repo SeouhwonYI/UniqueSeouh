@@ -458,12 +458,12 @@ if pathdata is not None:
     st.markdown("""초록색으로 표현된 경로는 :green[최단경로] 이며, 거리는 총 :green[""" + str(round(sum(e_distances),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances))+"""] 입니다.""")
     if not pathdata[(pathdata['color']=='#FF0000')|(pathdata['color']=='#D7DF01')].empty:
         st.markdown("""노란색으로 표현된 경로는 <span style='color:yellow'>경사가 약간 있는 도로</span> 이며, 빨간색으로 표현된 경로는 :red[경사가 가파른 도로] 입니다.""", unsafe_allow_html=True)
-    if 'noUphillEdge' in pathdata.index:
+    if 'newNoUphillEdge' in pathdata.index:
         st.markdown("""파란색으로 표현된 경로는 <span style='color:blue'>오르막이 없는 우회로</span> 이며, 거리는 총 :green[""" + str(round(sum(e_distances_d),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances_d))+"""] 입니다.""", unsafe_allow_html=True)
     
     view_state = pdk.ViewState(
-    latitude=(pathdata.loc['Edge']['path'][0][1]+pathdata.loc['Edge']['path'][len(pathdata.loc['Edge']['path'])-1][1]) / 2,
-    longitude=(pathdata.loc['Edge']['path'][0][0]+pathdata.loc['Edge']['path'][len(pathdata.loc['Edge']['path'])-1][0]) / 2,
+    latitude=(pathdata.loc['newEdge']['path'][0][1]+pathdata.loc['newEdge']['path'][len(pathdata.loc['newEdge']['path'])-1][1]) / 2,
+    longitude=(pathdata.loc['newEdge']['path'][0][0]+pathdata.loc['newEdge']['path'][len(pathdata.loc['newEdge']['path'])-1][0]) / 2,
     zoom=15)
 
     def hex_to_rgb(h):
