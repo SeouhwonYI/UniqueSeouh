@@ -277,7 +277,10 @@ with col1 :
                     st.write("장소명 :", name, "  \n위도 :", latitude, "  \n경도 :", longitude)
 
                     filtered_data = roaddata[(abs(roaddata['long'].astype(float)-longitude) <= 0.0005) & (abs(roaddata['lat'].astype(float)-latitude) <= 0.0005)][['nodeid','long','lat']].astype(float)
-
+                    temp = abs(filtered_data[['long', 'lat']]-[float(response_end.json()['documents'][0]['x']), float(response_end.json()['documents'][0]['y'])]).sum(axis=1)
+                    index = temp.argmin()
+                    start_recom = pd.DataFrame({'nodeid': [filtered_data.iloc[index, 0]], 'Latitude': [filtered_data.iloc[index, 2]], 'Longitude': [filtered_data.iloc[index, 1]]})
+                    
                     view_state = pdk.ViewState(latitude=df['Latitude'].mean(),
                                                 longitude=df['Longitude'].mean(),
                                                 zoom=16,
@@ -286,7 +289,7 @@ with col1 :
                     layer1 = pdk.Layer('ScatterplotLayer',
                                         data=df,
                                         get_position='[Longitude, Latitude]',
-                                        get_radius=5,
+                                        get_radius=2,
                                         get_fill_color=[230, 91, 76],
                                         pickable=True)
                     layer2 = pdk.Layer('ScatterplotLayer',
@@ -295,7 +298,13 @@ with col1 :
                                         get_radius=5,
                                         get_fill_color=[16, 155, 194],
                                         pickable=True)
-                    layers=[layer1, layer2]
+                    layer5 = pdk.Layer('ScatterplotLayer',
+                                           data=start_recom,
+                                           get_position='[Longitude, Latitude]',
+                                           get_radius=3,
+                                           get_fill_color=[0, 0, 0],
+                                           pickable=True)
+                    layers=[layer1, layer2, layer5]
 
                     if(df_elevator_start is not None):
                         layer3 = pdk.Layer('ScatterplotLayer',
@@ -365,7 +374,9 @@ with col1 :
                     st.write("장소명 :", name, "  \n위도 :", latitude, "  \n경도 :", longitude)
 
                     filtered_data = roaddata[(abs(roaddata['long'].astype(float)-longitude) <= 0.0005) & (abs(roaddata['lat'].astype(float)-latitude) <= 0.0005)][['nodeid','long','lat']].astype(float)
-
+                    temp = abs(filtered_data[['long', 'lat']]-[float(response_start.json()['documents'][0]['x']), float(response_start.json()['documents'][0]['y'])]).sum(axis=1)
+                    index = temp.argmin()
+                    start_recom = pd.DataFrame({'nodeid': [filtered_data.iloc[index, 0]], 'Latitude': [filtered_data.iloc[index, 2]], 'Longitude': [filtered_data.iloc[index, 1]]})
                     view_state = pdk.ViewState(latitude=df['Latitude'].mean(),
                                                 longitude=df['Longitude'].mean(),
                                                 zoom=16,
@@ -374,7 +385,7 @@ with col1 :
                     layer1 = pdk.Layer('ScatterplotLayer',
                                         data=df,
                                         get_position='[Longitude, Latitude]',
-                                        get_radius=5,
+                                        get_radius=2,
                                         get_fill_color=[230, 91, 76],
                                         pickable=True)
                     layer2 = pdk.Layer('ScatterplotLayer',
@@ -383,7 +394,13 @@ with col1 :
                                         get_radius=5,
                                         get_fill_color=[16, 155, 194],
                                         pickable=True)
-                    layers = [layer1, layer2]
+                    layer5 = pdk.Layer('ScatterplotLayer',
+                                           data=start_recom,
+                                           get_position='[Longitude, Latitude]',
+                                           get_radius=3,
+                                           get_fill_color=[0, 0, 0],
+                                           pickable=True)
+                    layers=[layer1, layer2, layer5] 
                     if(df_elevator_end is not None):
                         layer3 = pdk.Layer('ScatterplotLayer',
                                            data=df_elevator_end,
@@ -421,7 +438,7 @@ with col2:
         startid = st.text_input('출발지의 Node ID를 입력해주세요.')
         endid = st.text_input('도착지의 Node ID를 입력해주세요.')
 
-        speed = st.slider('걸음걸이 속도를 정해주세요. (단위 : m/min)', 35, 170, 50,help='조깅 속도 : 135 m/min\n\n성인평균 걸음걸이 속도 : 75 m/min\n\n고연령자 평균 걸음걸이 속도 : 65 m/min')
+        speed = st.slider('걸음걸이 속도를 정해주세요. (단위 : m/min)', 35, 170, 50,step=5,help='조깅 속도 : 135 m/min\n\n성인평균 걸음걸이 속도 : 75 m/min\n\n고연령자 평균 걸음걸이 속도 : 65 m/min')
         
         if st.form_submit_button('검색'):
             if st.session_state['uid'] != None and start and end and startid and endid:
@@ -457,9 +474,9 @@ def time(dist):
 if pathdata is not None:
     st.markdown("""초록색으로 표현된 경로는 :green[최단경로] 이며, 거리는 총 :green[""" + str(round(sum(e_distances),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances))+"""] 입니다.""")
     if not pathdata[(pathdata['color']=='#FF0000')|(pathdata['color']=='#D7DF01')].empty:
-        st.markdown("""노란색으로 표현된 경로는 <span style='color:yellow'>경사가 약간 있는 도로</span> 이며, 빨간색으로 표현된 경로는 :red[경사가 가파른 도로] 입니다.""", unsafe_allow_html=True)
+        st.markdown("""노란색으로 표현된 경로는 <span style='color:gold'>경사가 약간 있는 도로</span> 이며, 빨간색으로 표현된 경로는 :red[경사가 가파른 도로] 입니다.""", unsafe_allow_html=True)
     if 'newNoUphillEdge' in pathdata.index:
-        st.markdown("""파란색으로 표현된 경로는 <span style='color:blue'>오르막이 없는 우회로</span> 이며, 거리는 총 :green[""" + str(round(sum(e_distances_d),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances_d))+"""] 입니다.""", unsafe_allow_html=True)
+        st.markdown("""파란색으로 표현된 경로는 <span style='color:skyblue'>오르막이 없는 우회로</span> 이며, 거리는 총 :green[""" + str(round(sum(e_distances_d),3)) + """] m, 예상 소요시간은 :green[""" + time(sum(e_distances_d))+"""] 입니다.""", unsafe_allow_html=True)
     
     view_state = pdk.ViewState(
     latitude=(pathdata.loc['newEdge']['path'][0][1]+pathdata.loc['newEdge']['path'][len(pathdata.loc['newEdge']['path'])-1][1]) / 2,
