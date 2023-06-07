@@ -15,6 +15,7 @@ pwd_param = st.secrets["neo4j"]['pwd_param']
 def init_connection():
     return psycopg2.connect(**st.secrets["postgres"])
 
+
 class Neo4jConnection:
     def __init__(self, uri, user, pwd):
         self.__uri = uri
@@ -178,7 +179,8 @@ with st.sidebar:
                         if df_check.empty:
                             st.error("password를 다시 확인해주세요.")
                         else:
-                            check_sql = f"delete FROM users WHERE uid = '{uid}' and pwd = '{pwd}'"
+                            
+                            check_sql = f"UPDATE users_search SET uid = 'system_id' where uid = '{uid}'; DELETE FROM users WHERE uid = '{uid}' and pwd = '{pwd}'"
                             run_tx(check_sql)
                             st.success("더 좋은 서비스로 찾아뵙겠습니다.")
                 else:
@@ -266,7 +268,7 @@ with col1 :
                         longitude = coord_elevator[:, 0]
                         df_elevator_start = pd.DataFrame({'nodeid': data["설치장소"].values, 'Latitude': latitude, 'Longitude': longitude})
                         df_start = pd.DataFrame({'nodeid': data["설치장소"].loc[index], 'Latitude': [latitude[index]], 'Longitude': [longitude[index]]})
-
+        
                 data = response_start.json()
                 if 'documents' in data:
                     place = data['documents'][0]
@@ -275,12 +277,11 @@ with col1 :
                     longitude = float(place['x'])
                     df = pd.DataFrame({'nodeid': name, 'Latitude': latitude, 'Longitude': longitude}, index=[0])
                     st.write("장소명 :", name, "  \n위도 :", latitude, "  \n경도 :", longitude)
-
                     filtered_data = roaddata[(abs(roaddata['long'].astype(float)-longitude) <= 0.0005) & (abs(roaddata['lat'].astype(float)-latitude) <= 0.0005)][['nodeid','long','lat']].astype(float)
                     temp = abs(filtered_data[['long', 'lat']]-[float(response_end.json()['documents'][0]['x']), float(response_end.json()['documents'][0]['y'])]).sum(axis=1)
                     index = temp.argmin()
                     start_recom = pd.DataFrame({'nodeid': [filtered_data.iloc[index, 0]], 'Latitude': [filtered_data.iloc[index, 2]], 'Longitude': [filtered_data.iloc[index, 1]]})
-                    
+            
                     view_state = pdk.ViewState(latitude=df['Latitude'].mean(),
                                                 longitude=df['Longitude'].mean(),
                                                 zoom=16,
@@ -298,13 +299,8 @@ with col1 :
                                         get_radius=5,
                                         get_fill_color=[16, 155, 194],
                                         pickable=True)
-                    layer5 = pdk.Layer('ScatterplotLayer',
-                                           data=start_recom,
-                                           get_position='[Longitude, Latitude]',
-                                           get_radius=3,
-                                           get_fill_color=[0, 0, 0],
-                                           pickable=True)
-                    layers=[layer1, layer2, layer5]
+                    
+                    layers=[layer1, layer2]
 
                     if(df_elevator_start is not None):
                         layer3 = pdk.Layer('ScatterplotLayer',
@@ -321,6 +317,14 @@ with col1 :
                                            pickable=True)
                         layers.append(layer3)
                         layers.append(layer4)
+
+                    layer5 = pdk.Layer('ScatterplotLayer',
+                                        data=start_recom,
+                                        get_position='[Longitude, Latitude]',
+                                        get_radius=3,
+                                        get_fill_color=[0, 0, 0],
+                                        pickable=True)
+                    layers.append(layer5)
 
 
                     tool_tip = {'html': '{nodeid}',
@@ -376,7 +380,7 @@ with col1 :
                     filtered_data = roaddata[(abs(roaddata['long'].astype(float)-longitude) <= 0.0005) & (abs(roaddata['lat'].astype(float)-latitude) <= 0.0005)][['nodeid','long','lat']].astype(float)
                     temp = abs(filtered_data[['long', 'lat']]-[float(response_start.json()['documents'][0]['x']), float(response_start.json()['documents'][0]['y'])]).sum(axis=1)
                     index = temp.argmin()
-                    start_recom = pd.DataFrame({'nodeid': [filtered_data.iloc[index, 0]], 'Latitude': [filtered_data.iloc[index, 2]], 'Longitude': [filtered_data.iloc[index, 1]]})
+                    end_recom = pd.DataFrame({'nodeid': [filtered_data.iloc[index, 0]], 'Latitude': [filtered_data.iloc[index, 2]], 'Longitude': [filtered_data.iloc[index, 1]]})
                     view_state = pdk.ViewState(latitude=df['Latitude'].mean(),
                                                 longitude=df['Longitude'].mean(),
                                                 zoom=16,
@@ -394,13 +398,8 @@ with col1 :
                                         get_radius=5,
                                         get_fill_color=[16, 155, 194],
                                         pickable=True)
-                    layer5 = pdk.Layer('ScatterplotLayer',
-                                           data=start_recom,
-                                           get_position='[Longitude, Latitude]',
-                                           get_radius=3,
-                                           get_fill_color=[0, 0, 0],
-                                           pickable=True)
-                    layers=[layer1, layer2, layer5] 
+                    
+                    layers=[layer1, layer2] 
                     if(df_elevator_end is not None):
                         layer3 = pdk.Layer('ScatterplotLayer',
                                            data=df_elevator_end,
@@ -416,6 +415,14 @@ with col1 :
                                            pickable=True)
                         layers.append(layer3)
                         layers.append(layer4)
+
+                    layer5 = pdk.Layer('ScatterplotLayer',
+                                        data=end_recom,
+                                        get_position='[Longitude, Latitude]',
+                                        get_radius=3,
+                                        get_fill_color=[0, 0, 0],
+                                        pickable=True)
+                    layers.append(layer5)
 
 
                     tool_tip = {'html': '{nodeid}',
